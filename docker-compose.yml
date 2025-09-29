@@ -1,0 +1,105 @@
+version: "3.8"
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+    depends_on:
+      - zookeeper
+  connect:
+    image: quay.io/debezium/connect:3.2
+    container_name: kafka-connect
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: "kafka:9092"
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: "connect-configs"
+      OFFSET_STORAGE_TOPIC: "connect-offsets"
+      STATUS_STORAGE_TOPIC: "connect-statuses"
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: /kafka/connect
+    depends_on:
+      - kafka
+  postgres:
+    image: postgres:15
+    container_name: pg-source
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: dbz_source
+      POSTGRES_PASSWORD: dbz_source
+      POSTGRES_DB: ordersdb
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c listen_addresses='*'
+    volumes:
+      - ./source-initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbz_source -d ordersdb"]
+      interval: 5s
+      retries: 10
+  analytics:
+    image: postgres:15
+    container_name: pg-analytics
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: dbz_analytics
+      POSTGRES_PASSWORD: dbz_analytics
+      POSTGRES_DB: analyticsdb
+    volumes:
+      - ./analytics-initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbz_analytics -d analyticsdb"]
+      interval: 5s
+      retries: 10
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - analytics
+  # consumer:
+  #   build: ./consumer
+  #   container_name: sink-consumer
+  #   environment:
+  #     KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  #     KAFKA_TOPIC: "dbserver1.public.orders"
+  #     PG_HOST: "analytics"
+  #     PG_PORT: "5432"
+  #     PG_DB: "analyticsdb"
+  #     PG_USER: "analytics"
+  #     PG_PASSWORD: "analyticspw"
+  #     DELETE_STRATEGY: "hard"
+  #   depends_on:
+  #     - kafka
+  #     - analytics
+networks:
+  default:
+    name: cdc-demo-net
