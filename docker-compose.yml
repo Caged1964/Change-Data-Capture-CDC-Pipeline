@@ -85,21 +85,20 @@ services:
     depends_on:
       - postgres
       - analytics
-  # consumer:
-  #   build: ./consumer
-  #   container_name: sink-consumer
-  #   environment:
-  #     KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
-  #     KAFKA_TOPIC: "dbserver1.public.orders"
-  #     PG_HOST: "analytics"
-  #     PG_PORT: "5432"
-  #     PG_DB: "analyticsdb"
-  #     PG_USER: "analytics"
-  #     PG_PASSWORD: "analyticspw"
-  #     DELETE_STRATEGY: "hard"
-  #   depends_on:
-  #     - kafka
-  #     - analytics
+  consumer:
+    build: ./consumer
+    container_name: sink-consumer
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+      KAFKA_TOPIC: "dbserver1.public.orders"
+      PG_HOST: "pg-analytics"
+      PG_PORT: "5432"
+      PG_DB: "analyticsdb"
+      PG_USER: "dbz_analytics"
+      PG_PASSWORD: "dbz_analytics"
+    depends_on:
+      - kafka
+      - analytics
 networks:
   default:
     name: cdc-demo-net
