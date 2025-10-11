@@ -82,7 +82,7 @@ Change_Data_Capture_Pipeline/
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Caged1964/Change-Data-Capture-CDC-Pipeline.git
+git clone https://github.com/Eisodous/Change-Data-Capture-CDC-Pipeline.git
 cd Change-Data-Capture-CDC-Pipeline
 ```
 
